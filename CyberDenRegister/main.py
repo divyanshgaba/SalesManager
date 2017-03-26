@@ -31,13 +31,18 @@ class MyDB:
         self.db.exec_("\
                 CREATE TABLE IF NOT EXISTS  sale ('id'  INTEGER PRIMARY KEY AUTOINCREMENT ,\
                 'Company'  VARCHAR(50) NOT NULL ,  'Phone Number'  INT(15)    NOT NULL ,\
-                'Amount'  INT(10)    NOT NULL ,  'Alt Number'  INT(15)    NULL DEFAULT NULL ,\
-                'Party Name'  VARCHAR(50) NULL , 'Company Name' VARCHAR(50), 'Company Balance' INT(10),\
+                'Amount'  NUMBER(10)    NOT NULL ,  'Alt Number'  INT(15)    NULL DEFAULT NULL ,\
+                'Party Name'  VARCHAR(50) NULL , 'Company Name' VARCHAR(50), 'Company Balance' NUMBER,\
                 'Date Time'  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP , 'Type' CHAR(10) NOT NULL,\
                 'Status'  TINYINT(2) NOT NULL )")
     def insert_cash_sale(self,values):
-        self.db.exec_("INSERT INTO sale('Company','Phone Number','Amount','Alt Number','Type','Status')\
-                            VALUES(?, ?, ?, ?, ?, ?)", values)
+        query = QtSql.QSqlQuery(self.db)
+        query.prepare("INSERT INTO sale('Company','Phone Number','Amount','Alt Number','Type','Status')\
+                            VALUES(?, ?, ?, ?, ?, ?)")
+        query.addBindValue(values)
+        query.exec_()
+        #self.db.exec_("INSERT INTO sale('Company','Phone Number','Amount','Alt Number','Type','Status')\
+                   #         VALUES(?, ?, ?, ?, ?, ?)", values)
 
     def insert_credit_sale(self,values):
         self.db.exec_("INSERT INTO sale('Company','Phone Number','Amount','Alt Number','Party Name','Type','Status')\
@@ -159,17 +164,29 @@ class App(QtGui.QWidget):
         self.model = QtSql.QSqlQueryModel()
         self.model.setQuery("SELECT * FROM sale")
         self.db_table.setModel(self.model)
-        self.db_table.hideColumn(0)  #
+        #self.db_table.hideColumn(0)  # hide column 'id'
         self.db_table.hideColumn(6)  #
         self.db_table.hideColumn(7)  #
         self.db_table.hideColumn(9)
-        self.db_table.hideColumn(10)  # hide column 'id'
+        self.db_table.hideColumn(10)  # hide column 'status'
         #self.db_table.
         self.db_table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)  # select Row
         self.db_table.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)  # disable multiselect
         self.db_table.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
-        gridpending.addWidget(self.db_table)
+        gridpending.addWidget(self.db_table, 0, 0, 1, 5)
+
+        done_btn = QtGui.QPushButton("Done")
+        done_btn.resize(done_btn.sizeHint())
+        gridpending.addWidget(done_btn, 1, 4)
+        #done_btn.clicked.connect(self.submit_from_pending)
+
+        cancel_btn = QtGui.QPushButton("Cancel")
+        cancel_btn.resize(cancel_btn.sizeHint())
+        gridpending.addWidget(cancel_btn, 1, 3)
+        cancel_btn.clicked.connect(self.cancel_from_pending)
+
         self.grid.addLayout(gridpending, 4, 0, 8, 2)
+
         '''     self.view = QtGui.QTableView()
         self.model = PandasModel(self.db.pending_data())
         self.view.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
@@ -177,6 +194,9 @@ class App(QtGui.QWidget):
         gridpending.addWidget(self.view)
         self.grid.addLayout(gridpending, 4, 0, 8, 2)
         '''
+
+
+
 
     def add_gridreport(self):
 
@@ -234,15 +254,13 @@ class App(QtGui.QWidget):
     def cash_submit(self):
         values = []
         for label, LineEdit in zip(self.label_field, self.text_field):
-            if LineEdit.text() == "" and label.text() != "Alt Number":
-                return
-            else:
-                values.append(LineEdit.text())
+            values.append(LineEdit.text())
         values.extend(["Cash", 1])
         values = tuple(values)
+        print(values)
         self.db.insert_cash_sale(values)
         print("Success")
-        self.view.update()
+        #self.view.update()
         self.cash_dialog.close()
 
     def credit_sale_dialog(self):
@@ -405,6 +423,11 @@ class App(QtGui.QWidget):
         print("Success")
         self.cash_out_dialog.close()
 
+    def cancel_from_pending(self):
+        cancel_msg = "Are you sure you want to Cancel this order?"
+        reply = QtGui.QMessageBox.question(self, 'Message', cancel_msg, QtGui.QMessageBox.Yes|QtGui.QMessageBox.No,QtGui.QMessageBox.No)
+        if reply == QtGui.QMessageBox.Yes:
+            pass
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
